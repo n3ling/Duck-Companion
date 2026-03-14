@@ -405,7 +405,8 @@
       }
     }
 
-    const interval = CONFIG.BEHAVIOR_INTERVALS[chosenBehavior];
+    const intervalKey = { idle: 'idle', walking: 'walk', swimming: 'swim', napping: 'nap' }[chosenBehavior] || 'idle';
+    const interval = CONFIG.BEHAVIOR_INTERVALS[intervalKey];
     const delay = isInitial ? 400 : (interval.min * 0.3 + Math.random() * Math.min(1500, interval.max - interval.min));
     const duration = interval.min + Math.random() * (interval.max - interval.min);
 
