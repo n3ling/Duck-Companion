@@ -12,16 +12,20 @@
   const CONFIG = {
     DUCK_SIZE: { width: 80, height: 70 },
     GROUND_HEIGHT: 60,
-    SPEED: { walk: 2, run: 5, swim: 1.5 },
+    SPEED: { walk: 1, run: 2.5, swim: 0.75 },
     BEHAVIOR_INTERVALS: {
-      walk: { min: 2000, max: 5000 },
-      nap: { min: 5000, max: 10000 },
-      swim: { min: 3000, max: 7000 },
-      idle: { min: 1000, max: 3000 }
+      walk: { min: 30000, max: 120000 },
+      nap: { min: 30000, max: 120000 },
+      swim: { min: 30000, max: 120000 },
+      idle: { min: 30000, max: 120000 }
     },
     INTERACTION_DISTANCE: 45,
     SHOO_TOUCH_RADIUS: 50,
-    FEED_DURATION_MS: 900
+    SHOO_STOP_DISTANCE: 120,
+    FEED_DURATION_MS: 900,
+    IDLE_AFTER_DROP_MS: 4000,
+    DRAG_THRESHOLD_PX: 5,
+    FALL_SPEED_PX: 400
   };
 
   // ==================== State Management ====================
@@ -41,18 +45,42 @@
     animationFrame: null,
     eatingCooldownUntil: 0,
     quackBubbleTimeout: null,
-    lastDirectionChange: 0
+    lastDirectionChange: 0,
+    isDragging: false,
+    dragOffsetX: 0,
+    dragOffsetY: 0,
+    dragStartX: 0,
+    dragStartY: 0,
+    justFinishedDrag: false,
+    fallAnimationFrame: null,
+    isFalling: false
   };
 
   // ==================== Audio Context ====================
   let audioContext = null;
   const SOUND_FILES = { quack: 'quack.mp3', happy: 'happy.mp3', eat: 'eat.mp3' };
 
-  function initAudio() {
-    if (!audioContext) {
-      audioContext = new (window.AudioContext || window.webkitAudioContext)();
-    }
+  function getAudioContext() {
     return audioContext;
+  }
+
+  function withAudioContext(playFn) {
+    if (!state.soundEnabled) return;
+    const ctx = getAudioContext();
+    if (!ctx) return;
+    function run() {
+      if (ctx.state !== 'running') return;
+      try {
+        playFn(ctx);
+      } catch (e) {
+        console.log('Ducky: Could not play sound', e);
+      }
+    }
+    if (ctx.state === 'suspended') {
+      ctx.resume().then(run).catch(function() {});
+    } else {
+      run();
+    }
   }
 
   function tryPlayCustomSound(filename, fallbackFn) {
@@ -78,9 +106,7 @@
   }
 
   function playQuackSynth() {
-    try {
-      const ctx = initAudio();
-      if (ctx.state === 'suspended') ctx.resume();
+    withAudioContext(function(ctx) {
       const oscillator = ctx.createOscillator();
       const gainNode = ctx.createGain();
       oscillator.connect(gainNode);
@@ -92,7 +118,7 @@
       gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.15);
       oscillator.start(ctx.currentTime);
       oscillator.stop(ctx.currentTime + 0.15);
-      setTimeout(() => {
+      setTimeout(function() {
         if (!state.soundEnabled) return;
         const osc2 = ctx.createOscillator();
         const gain2 = ctx.createGain();
@@ -106,9 +132,7 @@
         osc2.start(ctx.currentTime);
         osc2.stop(ctx.currentTime + 0.1);
       }, 120);
-    } catch (e) {
-      console.log('Ducky: Could not play sound', e);
-    }
+    });
   }
 
   function playQuack() {
@@ -117,9 +141,7 @@
   }
 
   function playHappySynth() {
-    try {
-      const ctx = initAudio();
-      if (ctx.state === 'suspended') ctx.resume();
+    withAudioContext(function(ctx) {
       const oscillator = ctx.createOscillator();
       const gainNode = ctx.createGain();
       oscillator.connect(gainNode);
@@ -131,9 +153,7 @@
       gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.15);
       oscillator.start(ctx.currentTime);
       oscillator.stop(ctx.currentTime + 0.15);
-    } catch (e) {
-      console.log('Ducky: Could not play sound', e);
-    }
+    });
   }
 
   function playHappySound() {
@@ -142,9 +162,7 @@
   }
 
   function playEatSynth() {
-    try {
-      const ctx = initAudio();
-      if (ctx.state === 'suspended') ctx.resume();
+    withAudioContext(function(ctx) {
       const oscillator = ctx.createOscillator();
       const gainNode = ctx.createGain();
       oscillator.connect(gainNode);
@@ -156,9 +174,7 @@
       gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.08);
       oscillator.start(ctx.currentTime);
       oscillator.stop(ctx.currentTime + 0.08);
-    } catch (e) {
-      console.log('Ducky: Could not play sound', e);
-    }
+    });
   }
 
   function playEatSound() {
@@ -283,18 +299,21 @@
   }
 
   // ==================== Position Management ====================
+  function getGroundY() {
+    return window.innerHeight - CONFIG.GROUND_HEIGHT - CONFIG.DUCK_SIZE.height / 2;
+  }
+
   function updateDuckPosition() {
     if (!duckElement) return;
+    if (state.isDragging) return;
 
-    const groundY = window.innerHeight - CONFIG.GROUND_HEIGHT - CONFIG.DUCK_SIZE.height / 2;
-
+    const groundY = getGroundY();
     duckElement.style.left = `${state.position.x}px`;
     duckElement.style.top = `${groundY}px`;
   }
 
   function clampPosition(x) {
-    const padding = CONFIG.DUCK_SIZE.width;
-    return Math.max(padding, Math.min(window.innerWidth - padding, x));
+    return Math.max(0, Math.min(window.innerWidth - CONFIG.DUCK_SIZE.width, x));
   }
 
   // ==================== Behavior System ====================
@@ -303,7 +322,7 @@
     if (state.currentBehavior === behavior) return;
 
     // Remove old behavior classes
-    duckElement.classList.remove('idle', 'walking', 'swimming', 'napping', 'eating', 'running', 'scared', 'petting', 'quacking', 'fed');
+    duckElement.classList.remove('idle', 'walking', 'swimming', 'napping', 'eating', 'running', 'scared', 'petting', 'quacking', 'fed', 'picked-up', 'falling');
 
     // Set new behavior
     state.currentBehavior = behavior;
@@ -391,6 +410,8 @@
       state.behaviorTimeout = null;
     }
 
+    if (state.mode === 'sleep') return;
+
     const behaviors = ['idle', 'walking', 'swimming', 'napping'];
     const weights = [0.15, 0.4, 0.25, 0.2];
 
@@ -407,7 +428,7 @@
 
     const intervalKey = { idle: 'idle', walking: 'walk', swimming: 'swim', napping: 'nap' }[chosenBehavior] || 'idle';
     const interval = CONFIG.BEHAVIOR_INTERVALS[intervalKey];
-    const delay = isInitial ? 400 : (interval.min * 0.3 + Math.random() * Math.min(1500, interval.max - interval.min));
+    const delay = isInitial ? 400 : 500;
     const duration = interval.min + Math.random() * (interval.max - interval.min);
 
     state.behaviorTimeout = setTimeout(() => {
@@ -437,6 +458,8 @@
   function handleMousePosition(e) {
     state.mousePosition.x = e.clientX;
     state.mousePosition.y = e.clientY;
+
+    if (state.mode === 'sleep' || state.isDragging || state.isFalling) return;
 
     if (state.mode === 'shoo' && !state.isInteracting) {
       if (isMouseTouchingDuck()) {
@@ -476,6 +499,12 @@
     e.preventDefault();
     e.stopPropagation();
 
+    if (state.mode === 'sleep' || state.isFalling) return;
+    if (state.justFinishedDrag) {
+      state.justFinishedDrag = false;
+      return;
+    }
+
     if (state.quackBubbleTimeout) clearTimeout(state.quackBubbleTimeout);
 
     setBehavior('quacking');
@@ -496,6 +525,7 @@
   }
 
   function handleDuckHover(_e) {
+    if (state.mode === 'sleep' || state.isDragging || state.isFalling) return;
     if (state.mode === 'pet' && !state.isInteracting) {
       state.isInteracting = true;
       setBehavior('petting');
@@ -518,9 +548,117 @@
     return Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2);
   }
 
+  function startFallingAnimation(dropTop, leftX) {
+    state.isFalling = true;
+    const groundY = getGroundY();
+    const startTime = performance.now();
+
+    function fallStep(timestamp) {
+      if (!duckElement) return;
+      const elapsed = (timestamp - startTime) / 1000;
+      const fallDistance = CONFIG.FALL_SPEED_PX * elapsed;
+      const currentTop = Math.min(dropTop + fallDistance, groundY);
+      duckElement.style.top = `${currentTop}px`;
+      duckElement.style.left = `${leftX}px`;
+
+      if (currentTop < groundY) {
+        state.fallAnimationFrame = requestAnimationFrame(fallStep);
+      } else {
+        state.fallAnimationFrame = null;
+        state.isFalling = false;
+        duckElement.classList.remove('falling');
+        duckElement.style.top = `${groundY}px`;
+        landAfterDrop();
+      }
+    }
+
+    duckElement.classList.add('falling');
+    state.fallAnimationFrame = requestAnimationFrame(fallStep);
+  }
+
+  function landAfterDrop() {
+    if (state.mode === 'sleep') {
+      state.currentBehavior = '';
+      setBehavior('napping');
+      return;
+    }
+    state.currentBehavior = 'idle';
+    duckElement.classList.add('idle');
+    if (state.behaviorTimeout) clearTimeout(state.behaviorTimeout);
+    state.behaviorTimeout = setTimeout(function() {
+      state.behaviorTimeout = null;
+      scheduleNextBehavior(false);
+    }, CONFIG.IDLE_AFTER_DROP_MS);
+  }
+
+  function handleDuckMouseDown(e) {
+    if (state.isDragging) return;
+    e.preventDefault();
+
+    const groundY = getGroundY();
+    state.dragStartX = e.clientX;
+    state.dragStartY = e.clientY;
+    state.dragOffsetX = e.clientX - state.position.x;
+    state.dragOffsetY = e.clientY - groundY;
+
+    state.isDragging = true;
+    state.velocity.x = 0;
+    state.velocity.y = 0;
+    if (state.behaviorTimeout) {
+      clearTimeout(state.behaviorTimeout);
+      state.behaviorTimeout = null;
+    }
+
+    duckElement.classList.remove('idle', 'walking', 'swimming', 'napping', 'eating', 'running', 'scared', 'petting', 'quacking', 'fed', 'falling');
+    duckElement.classList.add('picked-up');
+
+    document.addEventListener('mousemove', handleDragMove);
+    document.addEventListener('mouseup', handleDragEnd, { once: true });
+  }
+
+  function handleDragMove(e) {
+    if (!state.isDragging || !duckElement) return;
+    let left = e.clientX - state.dragOffsetX;
+    left = Math.max(0, Math.min(window.innerWidth - CONFIG.DUCK_SIZE.width, left));
+    const top = e.clientY - state.dragOffsetY;
+    duckElement.style.left = `${left}px`;
+    duckElement.style.top = `${top}px`;
+  }
+
+  function handleDragEnd(e) {
+    document.removeEventListener('mousemove', handleDragMove);
+    if (!duckElement) return;
+
+    const moved = getDistance(state.dragStartX, state.dragStartY, e.clientX, e.clientY) >= CONFIG.DRAG_THRESHOLD_PX;
+    const dropLeft = parseFloat(duckElement.style.left) || state.position.x;
+    const dropTop = parseFloat(duckElement.style.top) || getGroundY();
+    const groundY = getGroundY();
+
+    state.isDragging = false;
+    duckElement.classList.remove('picked-up');
+
+    if (moved) {
+      state.justFinishedDrag = true;
+      state.position.x = clampPosition(dropLeft);
+      duckElement.style.left = `${state.position.x}px`;
+
+      if (dropTop < groundY - 2) {
+        startFallingAnimation(dropTop, state.position.x);
+      } else {
+        duckElement.style.top = `${groundY}px`;
+        landAfterDrop();
+      }
+    }
+  }
+
   // ==================== Animation Loop ====================
   function animationLoop() {
     if (!state.duckVisible) {
+      state.animationFrame = requestAnimationFrame(animationLoop);
+      return;
+    }
+
+    if (state.isDragging) {
       state.animationFrame = requestAnimationFrame(animationLoop);
       return;
     }
@@ -530,7 +668,7 @@
       state.position.x += state.velocity.x;
       state.position.x = clampPosition(state.position.x);
 
-      if (state.position.x <= CONFIG.DUCK_SIZE.width ||
+      if (state.position.x <= 0 ||
           state.position.x >= window.innerWidth - CONFIG.DUCK_SIZE.width) {
         state.velocity.x *= -1;
         state.facingLeft = !state.facingLeft;
@@ -552,7 +690,10 @@
 
     if (state.currentBehavior === 'running') {
       updateRunningDirection();
-      if (!isMouseTouchingDuck()) {
+      const duckCenterX = state.position.x + CONFIG.DUCK_SIZE.width / 2;
+      const duckCenterY = getDuckCenterY() + CONFIG.DUCK_SIZE.height / 2;
+      const distToMouse = getDistance(duckCenterX, duckCenterY, state.mousePosition.x, state.mousePosition.y);
+      if (distToMouse > CONFIG.SHOO_STOP_DISTANCE) {
         state.isInteracting = false;
         state.currentBehavior = 'idle';
         duckElement.classList.remove('running', 'scared');
@@ -571,17 +712,24 @@
         state.mode = message.mode;
         state.isInteracting = false;
 
-        // Reset cursor based on mode
         if (message.mode === 'feed') {
           duckElement.classList.add('ducky-feed-cursor');
         } else {
           duckElement.classList.remove('ducky-feed-cursor');
         }
 
-        if (state.currentBehavior === 'running' || state.currentBehavior === 'eating') {
-          state.currentBehavior = 'idle';
-          duckElement.classList.remove('running', 'scared', 'eating');
-          state.isInteracting = false;
+        if (message.mode === 'sleep') {
+          if (state.behaviorTimeout) {
+            clearTimeout(state.behaviorTimeout);
+            state.behaviorTimeout = null;
+          }
+          setBehavior('napping');
+        } else {
+          if (state.currentBehavior === 'running' || state.currentBehavior === 'eating') {
+            state.currentBehavior = 'idle';
+            duckElement.classList.remove('running', 'scared', 'eating');
+            state.isInteracting = false;
+          }
           scheduleNextBehavior(false);
         }
         break;
@@ -619,7 +767,7 @@
         featherColor: '#FFFFFF'
       });
 
-      state.mode = settings.mode;
+      state.mode = settings.mode || 'pet';
       state.soundEnabled = settings.soundEnabled;
       state.duckVisible = settings.duckVisible;
       state.featherColor = settings.featherColor || '#FFFFFF';
@@ -639,8 +787,18 @@
       waterGround.classList.remove('visible');
     }
 
-    // Event listeners (stored for cleanup)
+    function unlockAudio() {
+      if (!audioContext) {
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      if (audioContext.state === 'suspended') {
+        audioContext.resume();
+      }
+    }
+    document.addEventListener('click', unlockAudio, { once: true, capture: true });
+
     document.addEventListener('mousemove', handleMousePosition);
+    duckElement.addEventListener('mousedown', handleDuckMouseDown);
     duckElement.addEventListener('click', handleDuckClick);
     duckElement.addEventListener('mouseenter', handleDuckHover);
 
@@ -656,8 +814,12 @@
     // Start animation loop
     animationLoop();
 
-    setBehavior('idle');
-    scheduleNextBehavior(true);
+    if (state.mode === 'sleep') {
+      setBehavior('napping');
+    } else {
+      setBehavior('idle');
+      scheduleNextBehavior(true);
+    }
 
     state.isInitialized = true;
 
@@ -672,10 +834,16 @@
         state.animationFrame = null;
       }
       document.removeEventListener('mousemove', handleMousePosition);
+      document.removeEventListener('mousemove', handleDragMove);
+      document.removeEventListener('mouseup', handleDragEnd);
       if (duckElement) {
+        duckElement.removeEventListener('mousedown', handleDuckMouseDown);
         duckElement.removeEventListener('click', handleDuckClick);
         duckElement.removeEventListener('mouseenter', handleDuckHover);
         duckElement.remove();
+      }
+      if (state.fallAnimationFrame != null) {
+        cancelAnimationFrame(state.fallAnimationFrame);
       }
       if (waterGround && waterGround.parentNode) {
         waterGround.remove();

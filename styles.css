@@ -5,7 +5,7 @@
   position: fixed !important;
   z-index: 2147483647 !important;
   pointer-events: auto !important;
-  cursor: pointer !important;
+  cursor: grab !important;
   transition: transform 0.1s ease !important;
   font-size: 16px !important;
   line-height: 1 !important;
@@ -96,8 +96,11 @@
   transform: rotate(-5deg) !important;
 }
 
+/* Napping - eyes closed */
 .ducky-companion.napping .ducky-eye {
-  animation: blink-closed 3s ease-in-out infinite !important;
+  transform-origin: 83px 20px !important;
+  transform: scaleY(0.12) !important;
+  animation: none !important;
 }
 
 @keyframes blink-closed {
@@ -316,6 +319,50 @@
 @keyframes happy-eyes {
   0%, 100% { transform: scaleY(1); }
   50% { transform: scaleY(0.3); }
+}
+
+/* Picked up - dangling by neck, feet wiggling, wings flapping */
+.ducky-companion.picked-up {
+  cursor: grabbing !important;
+}
+
+.ducky-companion.picked-up .ducky-body {
+  transform: rotate(-55deg) !important;
+  animation: none !important;
+  transform-origin: 75% 25% !important;
+}
+
+.ducky-companion.picked-up .ducky-foot-left,
+.ducky-companion.picked-up .ducky-foot-right {
+  animation: ducky-feet-wiggle 0.25s ease-in-out infinite !important;
+}
+
+@keyframes ducky-feet-wiggle {
+  0%, 100% { transform: rotate(-15deg); }
+  50% { transform: rotate(15deg); }
+}
+
+.ducky-companion.picked-up .ducky-wing {
+  animation: ducky-picked-wing-flap 0.4s ease-in-out infinite !important;
+}
+
+@keyframes ducky-picked-wing-flap {
+  0%, 100% { transform: rotate(0deg); }
+  50% { transform: rotate(-25deg); }
+}
+
+.ducky-companion.picked-up .ducky-shadow {
+  opacity: 0.3 !important;
+}
+
+/* Falling */
+.ducky-companion.falling .ducky-body {
+  animation: ducky-fall-wobble 0.15s ease-in-out infinite !important;
+}
+
+@keyframes ducky-fall-wobble {
+  0%, 100% { transform: rotate(-2deg); }
+  50% { transform: rotate(2deg); }
 }
 
 /* Duck shadow */
