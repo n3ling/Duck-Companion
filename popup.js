@@ -6,14 +6,14 @@ document.addEventListener('DOMContentLoaded', async () => {
   const soundToggle = document.getElementById('soundToggle');
   const visibilityToggle = document.getElementById('visibilityToggle');
 
-  // Preset feather colours (work well with orange beak and feet)
+  // Preset feather colours - clearly different, work with orange beak and feet
   const FEATHER_PRESETS = [
-    { name: 'Classic White', hex: '#FFFFFF' },
-    { name: 'Cream', hex: '#FFF8E7' },
-    { name: 'Lemon', hex: '#FFF9C4' },
-    { name: 'Peach', hex: '#FFE0B2' },
-    { name: 'Soft Gray', hex: '#EEEEEE' },
-    { name: 'Snow', hex: '#FFFAF0' }
+    { name: 'White', hex: '#FFFFFF' },
+    { name: 'Yellow', hex: '#FFF59D' },
+    { name: 'Sky', hex: '#B3E5FC' },
+    { name: 'Pink', hex: '#F8BBD9' },
+    { name: 'Gray', hex: '#BDBDBD' },
+    { name: 'Peach', hex: '#FFCC80' }
   ];
 
   // Load saved settings

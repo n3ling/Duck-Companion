@@ -19,8 +19,9 @@
       swim: { min: 3000, max: 7000 },
       idle: { min: 1000, max: 3000 }
     },
-    INTERACTION_DISTANCE: 100,
-    SHOO_DISTANCE: 150
+    INTERACTION_DISTANCE: 45,
+    SHOO_TOUCH_RADIUS: 50,
+    FEED_DURATION_MS: 900
   };
 
   // ==================== State Management ====================
@@ -38,7 +39,9 @@
     mousePosition: { x: 0, y: 0 },
     behaviorTimeout: null,
     animationFrame: null,
-    eatingCooldownUntil: 0
+    eatingCooldownUntil: 0,
+    quackBubbleTimeout: null,
+    lastDirectionChange: 0
   };
 
   // ==================== Audio Context ====================
@@ -339,6 +342,7 @@
     const direction = Math.random() > 0.5 ? 1 : -1;
     state.velocity.x = direction * CONFIG.SPEED.walk;
     state.facingLeft = direction < 0;
+    state.lastDirectionChange = Date.now();
     updateFacingDirection();
   }
 
@@ -346,8 +350,9 @@
     const direction = Math.random() > 0.5 ? 1 : -1;
     state.velocity.x = direction * CONFIG.SPEED.swim;
     state.facingLeft = direction < 0;
+    state.lastDirectionChange = Date.now();
     updateFacingDirection();
-    waterGround.classList.add('visible');
+    if (waterGround) waterGround.classList.add('visible');
   }
 
   function startNapping() {
@@ -359,7 +364,10 @@
   }
 
   function startRunning() {
-    // Run away from mouse
+    updateRunningDirection();
+  }
+
+  function updateRunningDirection() {
     const dx = state.position.x - state.mousePosition.x;
     const direction = dx > 0 ? 1 : -1;
     state.velocity.x = direction * CONFIG.SPEED.run;
@@ -377,19 +385,18 @@
   }
 
   // ==================== Behavior Scheduling ====================
-  function scheduleNextBehavior() {
+  function scheduleNextBehavior(isInitial) {
     if (state.behaviorTimeout) {
       clearTimeout(state.behaviorTimeout);
+      state.behaviorTimeout = null;
     }
 
     const behaviors = ['idle', 'walking', 'swimming', 'napping'];
-    const weights = [0.2, 0.4, 0.25, 0.15];
+    const weights = [0.15, 0.4, 0.25, 0.2];
 
-    // Choose behavior based on weights
     let random = Math.random();
     let cumulative = 0;
     let chosenBehavior = 'idle';
-
     for (let i = 0; i < behaviors.length; i++) {
       cumulative += weights[i];
       if (random <= cumulative) {
@@ -398,23 +405,31 @@
       }
     }
 
-    // Schedule behavior change (delay before switching to next behavior)
     const interval = CONFIG.BEHAVIOR_INTERVALS[chosenBehavior];
-    const delay = interval.min + Math.random() * (interval.max - interval.min);
+    const delay = isInitial ? 400 : (interval.min * 0.3 + Math.random() * Math.min(1500, interval.max - interval.min));
+    const duration = interval.min + Math.random() * (interval.max - interval.min);
 
     state.behaviorTimeout = setTimeout(() => {
       if (!state.isInteracting) {
         setBehavior(chosenBehavior);
-
-        // Schedule how long to do this behavior
-        const duration = interval.min + Math.random() * (interval.max - interval.min);
         state.behaviorTimeout = setTimeout(() => {
-          scheduleNextBehavior();
+          scheduleNextBehavior(false);
         }, duration);
       } else {
-        scheduleNextBehavior();
+        scheduleNextBehavior(false);
       }
     }, delay);
+  }
+
+  function getDuckCenterY() {
+    return window.innerHeight - CONFIG.GROUND_HEIGHT - CONFIG.DUCK_SIZE.height / 2;
+  }
+
+  function isMouseTouchingDuck() {
+    const duckCenterX = state.position.x + CONFIG.DUCK_SIZE.width / 2;
+    const duckCenterY = getDuckCenterY() + CONFIG.DUCK_SIZE.height / 2;
+    const dist = getDistance(state.mousePosition.x, state.mousePosition.y, duckCenterX, duckCenterY);
+    return dist < CONFIG.SHOO_TOUCH_RADIUS;
   }
 
   // ==================== Interaction Handlers ====================
@@ -423,33 +438,35 @@
     state.mousePosition.y = e.clientY;
 
     if (state.mode === 'shoo' && !state.isInteracting) {
-      const distance = getDistance(state.position.x, 0, state.mousePosition.x, 0);
-      if (distance < CONFIG.SHOO_DISTANCE) {
+      if (isMouseTouchingDuck()) {
         setBehavior('running');
         state.isInteracting = true;
       }
     }
 
     if (state.mode === 'feed') {
-      const distance = getDistance(state.position.x, 0, state.mousePosition.x, 0);
+      const duckCenterX = state.position.x + CONFIG.DUCK_SIZE.width / 2;
+      const duckCenterY = getDuckCenterY() + CONFIG.DUCK_SIZE.height / 2;
+      const distance = getDistance(state.mousePosition.x, state.mousePosition.y, duckCenterX, duckCenterY);
       const inCooldown = Date.now() < state.eatingCooldownUntil;
       if (distance < CONFIG.INTERACTION_DISTANCE && state.currentBehavior !== 'eating' && !inCooldown) {
         setBehavior('eating');
         state.isInteracting = true;
         playEatSound();
 
-        // Show eating for a bit, then stop (with cooldown to prevent repeated triggers)
         setTimeout(() => {
           if (state.currentBehavior === 'eating' && duckElement) {
             state.isInteracting = false;
-            state.eatingCooldownUntil = Date.now() + 1000;
-            duckElement.classList.add('fed');
+            state.eatingCooldownUntil = Date.now() + 800;
+            state.currentBehavior = 'idle';
+            duckElement.classList.remove('eating');
+            duckElement.classList.add('idle', 'fed');
             setTimeout(() => {
               if (duckElement) duckElement.classList.remove('fed');
-              scheduleNextBehavior();
-            }, 500);
+              scheduleNextBehavior(false);
+            }, 400);
           }
-        }, 2000);
+        }, CONFIG.FEED_DURATION_MS);
       }
     }
   }
@@ -458,20 +475,22 @@
     e.preventDefault();
     e.stopPropagation();
 
-    // Quack!
+    if (state.quackBubbleTimeout) clearTimeout(state.quackBubbleTimeout);
+
     setBehavior('quacking');
     playQuack();
 
-    // Show quack bubble
     const bubble = duckElement.querySelector('.ducky-quack-bubble');
-    bubble.style.display = 'block';
+    if (bubble) {
+      bubble.style.display = 'block';
+      bubble.style.zIndex = '100';
+    }
 
-    setTimeout(() => {
-      bubble.style.display = 'none';
+    state.quackBubbleTimeout = setTimeout(() => {
+      state.quackBubbleTimeout = null;
+      if (bubble) bubble.style.display = 'none';
       duckElement.classList.remove('quacking');
-      if (!state.isInteracting) {
-        scheduleNextBehavior();
-      }
+      if (!state.isInteracting) scheduleNextBehavior(false);
     }, 500);
   }
 
@@ -481,15 +500,15 @@
       setBehavior('petting');
       playHappySound();
 
-      // Show hearts
       const hearts = duckElement.querySelector('.ducky-hearts');
-      hearts.style.display = 'block';
+      if (hearts) hearts.style.display = 'block';
 
       setTimeout(() => {
-        hearts.style.display = 'none';
+        if (hearts) hearts.style.display = 'none';
         duckElement.classList.remove('petting');
+        state.currentBehavior = 'idle';
         state.isInteracting = false;
-        scheduleNextBehavior();
+        scheduleNextBehavior(false);
       }, 600);
     }
   }
@@ -510,24 +529,33 @@
       state.position.x += state.velocity.x;
       state.position.x = clampPosition(state.position.x);
 
-      // Bounce at edges
       if (state.position.x <= CONFIG.DUCK_SIZE.width ||
           state.position.x >= window.innerWidth - CONFIG.DUCK_SIZE.width) {
         state.velocity.x *= -1;
         state.facingLeft = !state.facingLeft;
+        state.lastDirectionChange = Date.now();
+        updateFacingDirection();
+      }
+
+      // Random direction change when walking or swimming (every ~2–4 sec)
+      if ((state.currentBehavior === 'walking' || state.currentBehavior === 'swimming') &&
+          Date.now() - state.lastDirectionChange > 2000 && Math.random() < 0.006) {
+        state.velocity.x *= -1;
+        state.facingLeft = !state.facingLeft;
+        state.lastDirectionChange = Date.now();
         updateFacingDirection();
       }
 
       updateDuckPosition();
     }
 
-    // Check if running away in shoo mode
     if (state.currentBehavior === 'running') {
-      const distance = getDistance(state.position.x, 0, state.mousePosition.x, 0);
-      if (distance > CONFIG.SHOO_DISTANCE) {
+      updateRunningDirection();
+      if (!isMouseTouchingDuck()) {
         state.isInteracting = false;
+        state.currentBehavior = 'idle';
         duckElement.classList.remove('running', 'scared');
-        scheduleNextBehavior();
+        scheduleNextBehavior(false);
       }
     }
 
@@ -549,9 +577,11 @@
           duckElement.classList.remove('ducky-feed-cursor');
         }
 
-        // If switching away from current mode, resume normal behavior
         if (state.currentBehavior === 'running' || state.currentBehavior === 'eating') {
-          scheduleNextBehavior();
+          state.currentBehavior = 'idle';
+          duckElement.classList.remove('running', 'scared', 'eating');
+          state.isInteracting = false;
+          scheduleNextBehavior(false);
         }
         break;
 
@@ -625,8 +655,8 @@
     // Start animation loop
     animationLoop();
 
-    // Start behavior scheduling
-    scheduleNextBehavior();
+    setBehavior('idle');
+    scheduleNextBehavior(true);
 
     state.isInitialized = true;
 
