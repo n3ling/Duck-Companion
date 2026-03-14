@@ -1,11 +1,13 @@
 // Background service worker for Ducky Companion extension
+// Default settings (source of truth) — popup and content script fallbacks should match these.
 
 // Initialize default settings on install
 chrome.runtime.onInstalled.addListener(async () => {
   await chrome.storage.sync.set({
     mode: 'pet',
     soundEnabled: true,
-    duckVisible: true
+    duckVisible: true,
+    featherColor: '#FFFFFF'
   });
   console.log('Ducky Companion installed! 🦆');
 });
@@ -16,7 +18,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     chrome.storage.sync.get({
       mode: 'pet',
       soundEnabled: true,
-      duckVisible: true
+      duckVisible: true,
+      featherColor: '#FFFFFF'
     }).then(sendResponse);
     return true; // Required for async response
   }

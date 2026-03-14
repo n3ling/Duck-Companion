@@ -28,6 +28,7 @@
     mode: 'pet',
     soundEnabled: true,
     duckVisible: true,
+    featherColor: '#FFFFFF',
     isInitialized: false,
     position: { x: 100, y: 0 },
     velocity: { x: 0, y: 0 },
@@ -36,11 +37,13 @@
     isInteracting: false,
     mousePosition: { x: 0, y: 0 },
     behaviorTimeout: null,
-    animationFrame: null
+    animationFrame: null,
+    eatingCooldownUntil: 0
   };
 
   // ==================== Audio Context ====================
   let audioContext = null;
+  const SOUND_FILES = { quack: 'quack.mp3', happy: 'happy.mp3', eat: 'eat.mp3' };
 
   function initAudio() {
     if (!audioContext) {
@@ -49,34 +52,43 @@
     return audioContext;
   }
 
-  function playQuack() {
+  function tryPlayCustomSound(filename, fallbackFn) {
     if (!state.soundEnabled) return;
+    try {
+      const url = chrome.runtime.getURL('sounds/' + filename);
+      const audio = new Audio(url);
+      let fallbackCalled = false;
+      const doFallback = () => {
+        if (!fallbackCalled) {
+          fallbackCalled = true;
+          fallbackFn();
+        }
+      };
+      audio.onerror = doFallback;
+      const played = audio.play();
+      if (played && typeof played.catch === 'function') {
+        played.catch(doFallback);
+      }
+    } catch (_e) {
+      fallbackFn();
+    }
+  }
 
+  function playQuackSynth() {
     try {
       const ctx = initAudio();
-      if (ctx.state === 'suspended') {
-        ctx.resume();
-      }
-
-      // Create oscillator for quack sound
+      if (ctx.state === 'suspended') ctx.resume();
       const oscillator = ctx.createOscillator();
       const gainNode = ctx.createGain();
-
       oscillator.connect(gainNode);
       gainNode.connect(ctx.destination);
-
-      // Quack is a low-frequency sound
       oscillator.type = 'sawtooth';
       oscillator.frequency.setValueAtTime(300, ctx.currentTime);
       oscillator.frequency.exponentialRampToValueAtTime(150, ctx.currentTime + 0.15);
-
       gainNode.gain.setValueAtTime(0.3, ctx.currentTime);
       gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.15);
-
       oscillator.start(ctx.currentTime);
       oscillator.stop(ctx.currentTime + 0.15);
-
-      // Add a second shorter quack
       setTimeout(() => {
         if (!state.soundEnabled) return;
         const osc2 = ctx.createOscillator();
@@ -91,7 +103,31 @@
         osc2.start(ctx.currentTime);
         osc2.stop(ctx.currentTime + 0.1);
       }, 120);
+    } catch (e) {
+      console.log('Ducky: Could not play sound', e);
+    }
+  }
 
+  function playQuack() {
+    if (!state.soundEnabled) return;
+    tryPlayCustomSound(SOUND_FILES.quack, playQuackSynth);
+  }
+
+  function playHappySynth() {
+    try {
+      const ctx = initAudio();
+      if (ctx.state === 'suspended') ctx.resume();
+      const oscillator = ctx.createOscillator();
+      const gainNode = ctx.createGain();
+      oscillator.connect(gainNode);
+      gainNode.connect(ctx.destination);
+      oscillator.type = 'sine';
+      oscillator.frequency.setValueAtTime(600, ctx.currentTime);
+      oscillator.frequency.exponentialRampToValueAtTime(800, ctx.currentTime + 0.1);
+      gainNode.gain.setValueAtTime(0.2, ctx.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.15);
+      oscillator.start(ctx.currentTime);
+      oscillator.stop(ctx.currentTime + 0.15);
     } catch (e) {
       console.log('Ducky: Could not play sound', e);
     }
@@ -99,29 +135,24 @@
 
   function playHappySound() {
     if (!state.soundEnabled) return;
+    tryPlayCustomSound(SOUND_FILES.happy, playHappySynth);
+  }
 
+  function playEatSynth() {
     try {
       const ctx = initAudio();
-      if (ctx.state === 'suspended') {
-        ctx.resume();
-      }
-
+      if (ctx.state === 'suspended') ctx.resume();
       const oscillator = ctx.createOscillator();
       const gainNode = ctx.createGain();
-
       oscillator.connect(gainNode);
       gainNode.connect(ctx.destination);
-
-      oscillator.type = 'sine';
-      oscillator.frequency.setValueAtTime(600, ctx.currentTime);
-      oscillator.frequency.exponentialRampToValueAtTime(800, ctx.currentTime + 0.1);
-
-      gainNode.gain.setValueAtTime(0.2, ctx.currentTime);
-      gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.15);
-
+      oscillator.type = 'square';
+      oscillator.frequency.setValueAtTime(200, ctx.currentTime);
+      oscillator.frequency.exponentialRampToValueAtTime(100, ctx.currentTime + 0.05);
+      gainNode.gain.setValueAtTime(0.15, ctx.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.08);
       oscillator.start(ctx.currentTime);
-      oscillator.stop(ctx.currentTime + 0.15);
-
+      oscillator.stop(ctx.currentTime + 0.08);
     } catch (e) {
       console.log('Ducky: Could not play sound', e);
     }
@@ -129,52 +160,27 @@
 
   function playEatSound() {
     if (!state.soundEnabled) return;
-
-    try {
-      const ctx = initAudio();
-      if (ctx.state === 'suspended') {
-        ctx.resume();
-      }
-
-      const oscillator = ctx.createOscillator();
-      const gainNode = ctx.createGain();
-
-      oscillator.connect(gainNode);
-      gainNode.connect(ctx.destination);
-
-      oscillator.type = 'square';
-      oscillator.frequency.setValueAtTime(200, ctx.currentTime);
-      oscillator.frequency.exponentialRampToValueAtTime(100, ctx.currentTime + 0.05);
-
-      gainNode.gain.setValueAtTime(0.15, ctx.currentTime);
-      gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.08);
-
-      oscillator.start(ctx.currentTime);
-      oscillator.stop(ctx.currentTime + 0.08);
-
-    } catch (e) {
-      console.log('Ducky: Could not play sound', e);
-    }
+    tryPlayCustomSound(SOUND_FILES.eat, playEatSynth);
   }
 
   // ==================== Duck SVG ====================
   function createDuckSVG() {
     return `
       <svg class="ducky-svg" viewBox="0 0 100 90" xmlns="http://www.w3.org/2000/svg">
-        <!-- Duck Body (white) -->
-        <ellipse class="ducky-main-body" cx="50" cy="50" rx="35" ry="28" fill="#FFFFFF" stroke="#E0E0E0" stroke-width="1"/>
+        <!-- Duck Body (feather colour via CSS variable) -->
+        <ellipse class="ducky-main-body" cx="50" cy="50" rx="35" ry="28" fill="var(--duck-feather, #FFFFFF)" stroke="#E0E0E0" stroke-width="1"/>
 
         <!-- Wing -->
-        <ellipse class="ducky-wing" cx="45" cy="48" rx="18" ry="14" fill="#F5F5F5" stroke="#E0E0E0" stroke-width="0.5"/>
+        <ellipse class="ducky-wing" cx="45" cy="48" rx="18" ry="14" fill="var(--duck-feather, #FFFFFF)" stroke="#E0E0E0" stroke-width="0.5"/>
 
         <!-- Wing detail -->
         <path d="M 35 50 Q 45 55 55 50" stroke="#D0D0D0" stroke-width="1" fill="none"/>
 
         <!-- Neck -->
-        <ellipse cx="75" cy="35" rx="12" ry="18" fill="#FFFFFF" stroke="#E0E0E0" stroke-width="0.5"/>
+        <ellipse cx="75" cy="35" rx="12" ry="18" fill="var(--duck-feather, #FFFFFF)" stroke="#E0E0E0" stroke-width="0.5"/>
 
         <!-- Head -->
-        <circle cx="80" cy="22" r="14" fill="#FFFFFF" stroke="#E0E0E0" stroke-width="0.5"/>
+        <circle cx="80" cy="22" r="14" fill="var(--duck-feather, #FFFFFF)" stroke="#E0E0E0" stroke-width="0.5"/>
 
         <!-- Eye -->
         <g class="ducky-eye">
@@ -202,8 +208,8 @@
         </g>
 
         <!-- Tail feathers -->
-        <path d="M 15 45 Q 8 40 5 45 Q 8 48 15 48" fill="#F5F5F5" stroke="#E0E0E0" stroke-width="0.5"/>
-        <path d="M 15 50 Q 6 48 3 52 Q 8 54 15 52" fill="#F5F5F5" stroke="#E0E0E0" stroke-width="0.5"/>
+        <path d="M 15 45 Q 8 40 5 45 Q 8 48 15 48" fill="var(--duck-feather, #FFFFFF)" stroke="#E0E0E0" stroke-width="0.5"/>
+        <path d="M 15 50 Q 6 48 3 52 Q 8 54 15 52" fill="var(--duck-feather, #FFFFFF)" stroke="#E0E0E0" stroke-width="0.5"/>
 
         <!-- Blush -->
         <ellipse cx="75" cy="28" rx="4" ry="2" fill="#FFB6C1" opacity="0.5"/>
@@ -263,8 +269,14 @@
     document.body.appendChild(duckElement);
     document.body.appendChild(waterGround);
 
-    // Initial position
+    applyFeatherColor();
     updateDuckPosition();
+  }
+
+  function applyFeatherColor() {
+    if (!duckElement) return;
+    const body = duckElement.querySelector('.ducky-body');
+    if (body) body.style.setProperty('--duck-feather', state.featherColor);
   }
 
   // ==================== Position Management ====================
@@ -284,6 +296,7 @@
 
   // ==================== Behavior System ====================
   function setBehavior(behavior) {
+    if (!duckElement) return;
     if (state.currentBehavior === behavior) return;
 
     // Remove old behavior classes
@@ -312,6 +325,7 @@
         break;
       case 'running':
         startRunning();
+        duckElement.classList.add('scared');
         break;
     }
   }
@@ -354,6 +368,7 @@
   }
 
   function updateFacingDirection() {
+    if (!duckElement) return;
     if (state.facingLeft) {
       duckElement.classList.add('facing-left');
     } else {
@@ -383,7 +398,7 @@
       }
     }
 
-    // Schedule behavior change
+    // Schedule behavior change (delay before switching to next behavior)
     const interval = CONFIG.BEHAVIOR_INTERVALS[chosenBehavior];
     const delay = interval.min + Math.random() * (interval.max - interval.min);
 
@@ -399,7 +414,7 @@
       } else {
         scheduleNextBehavior();
       }
-    }, 500);
+    }, delay);
   }
 
   // ==================== Interaction Handlers ====================
@@ -417,18 +432,20 @@
 
     if (state.mode === 'feed') {
       const distance = getDistance(state.position.x, 0, state.mousePosition.x, 0);
-      if (distance < CONFIG.INTERACTION_DISTANCE && state.currentBehavior !== 'eating') {
+      const inCooldown = Date.now() < state.eatingCooldownUntil;
+      if (distance < CONFIG.INTERACTION_DISTANCE && state.currentBehavior !== 'eating' && !inCooldown) {
         setBehavior('eating');
         state.isInteracting = true;
         playEatSound();
 
-        // Show eating for a bit, then stop
+        // Show eating for a bit, then stop (with cooldown to prevent repeated triggers)
         setTimeout(() => {
-          if (state.currentBehavior === 'eating') {
+          if (state.currentBehavior === 'eating' && duckElement) {
             state.isInteracting = false;
+            state.eatingCooldownUntil = Date.now() + 1000;
             duckElement.classList.add('fed');
             setTimeout(() => {
-              duckElement.classList.remove('fed');
+              if (duckElement) duckElement.classList.remove('fed');
               scheduleNextBehavior();
             }, 500);
           }
@@ -458,7 +475,7 @@
     }, 500);
   }
 
-  function handleDuckHover(e) {
+  function handleDuckHover(_e) {
     if (state.mode === 'pet' && !state.isInteracting) {
       state.isInteracting = true;
       setBehavior('petting');
@@ -519,6 +536,7 @@
 
   // ==================== Message Handler ====================
   function handleMessage(message) {
+    if (!duckElement) return;
     switch (message.type) {
       case 'MODE_CHANGED':
         state.mode = message.mode;
@@ -551,47 +569,58 @@
           waterGround.classList.remove('visible');
         }
         break;
+
+      case 'FEATHER_COLOR_CHANGED':
+        state.featherColor = message.featherColor;
+        applyFeatherColor();
+        break;
     }
   }
 
   // ==================== Initialization ====================
   async function init() {
-    // Load settings
+    // Load settings (defaults must match background.js)
     try {
       const settings = await chrome.storage.sync.get({
         mode: 'pet',
         soundEnabled: true,
-        duckVisible: true
+        duckVisible: true,
+        featherColor: '#FFFFFF'
       });
 
       state.mode = settings.mode;
       state.soundEnabled = settings.soundEnabled;
       state.duckVisible = settings.duckVisible;
+      state.featherColor = settings.featherColor || '#FFFFFF';
     } catch (e) {
       // Default values if storage not available
     }
 
-    // Set initial position
-    state.position.x = window.innerWidth / 2;
+    // Set initial position (bottom left of page)
+    state.position.x = CONFIG.DUCK_SIZE.width;
 
     // Create duck
     createDuckElement();
 
-    // Event listeners
+    // Apply initial visibility from saved settings
+    if (!state.duckVisible) {
+      duckElement.classList.add('hidden');
+      waterGround.classList.remove('visible');
+    }
+
+    // Event listeners (stored for cleanup)
     document.addEventListener('mousemove', handleMousePosition);
     duckElement.addEventListener('click', handleDuckClick);
     duckElement.addEventListener('mouseenter', handleDuckHover);
 
-    // Listen for messages from popup
-    chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-      handleMessage(message);
-    });
+    const messageListener = (message) => handleMessage(message);
+    chrome.runtime.onMessage.addListener(messageListener);
 
-    // Handle window resize
-    window.addEventListener('resize', () => {
+    const resizeHandler = () => {
       state.position.x = clampPosition(state.position.x);
       updateDuckPosition();
-    });
+    };
+    window.addEventListener('resize', resizeHandler);
 
     // Start animation loop
     animationLoop();
@@ -600,6 +629,36 @@
     scheduleNextBehavior();
 
     state.isInitialized = true;
+
+    // Cleanup on page unload
+    const destroy = () => {
+      if (state.behaviorTimeout) {
+        clearTimeout(state.behaviorTimeout);
+        state.behaviorTimeout = null;
+      }
+      if (state.animationFrame != null) {
+        cancelAnimationFrame(state.animationFrame);
+        state.animationFrame = null;
+      }
+      document.removeEventListener('mousemove', handleMousePosition);
+      if (duckElement) {
+        duckElement.removeEventListener('click', handleDuckClick);
+        duckElement.removeEventListener('mouseenter', handleDuckHover);
+        duckElement.remove();
+      }
+      if (waterGround && waterGround.parentNode) {
+        waterGround.remove();
+      }
+      window.removeEventListener('resize', resizeHandler);
+      chrome.runtime.onMessage.removeListener(messageListener);
+      duckElement = null;
+      waterGround = null;
+      window.duckyCompanionInitialized = false;
+    };
+
+    window.addEventListener('beforeunload', destroy);
+    window.addEventListener('pagehide', destroy);
+
     console.log('🦆 Ducky Companion initialized!');
   }
 

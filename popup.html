@@ -158,6 +158,32 @@
       padding-top: 8px;
       border-top: 1px solid #eee;
     }
+
+    .color-swatches {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    .color-swatch {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      border: 2px solid transparent;
+      cursor: pointer;
+      transition: transform 0.15s ease, border-color 0.15s ease;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+    }
+
+    .color-swatch:hover {
+      transform: scale(1.1);
+    }
+
+    .color-swatch.active {
+      border-color: #00897b;
+      transform: scale(1.15);
+    }
   </style>
 </head>
 <body>
@@ -181,6 +207,11 @@
         <span class="label">Feed Mode</span>
       </button>
     </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Feather colour</div>
+    <div class="color-swatches" id="colorSwatches"></div>
   </div>
 
   <div class="section">

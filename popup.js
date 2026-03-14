@@ -1,15 +1,27 @@
 // Popup script for Ducky Companion extension
+// Default fallbacks must match background.js (source of truth for install defaults).
 
 document.addEventListener('DOMContentLoaded', async () => {
   const modeButtons = document.querySelectorAll('.mode-btn');
   const soundToggle = document.getElementById('soundToggle');
   const visibilityToggle = document.getElementById('visibilityToggle');
 
+  // Preset feather colours (work well with orange beak and feet)
+  const FEATHER_PRESETS = [
+    { name: 'Classic White', hex: '#FFFFFF' },
+    { name: 'Cream', hex: '#FFF8E7' },
+    { name: 'Lemon', hex: '#FFF9C4' },
+    { name: 'Peach', hex: '#FFE0B2' },
+    { name: 'Soft Gray', hex: '#EEEEEE' },
+    { name: 'Snow', hex: '#FFFAF0' }
+  ];
+
   // Load saved settings
   const settings = await chrome.storage.sync.get({
     mode: 'pet',
     soundEnabled: true,
-    duckVisible: true
+    duckVisible: true,
+    featherColor: '#FFFFFF'
   });
 
   // Apply saved mode
@@ -34,6 +46,20 @@ document.addEventListener('DOMContentLoaded', async () => {
   } else {
     visibilityToggle.classList.remove('active');
   }
+
+  // Feather colour swatches
+  const colorSwatches = document.getElementById('colorSwatches');
+  const currentFeather = settings.featherColor || '#FFFFFF';
+  FEATHER_PRESETS.forEach((preset) => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'color-swatch' + (preset.hex.toUpperCase() === currentFeather.toUpperCase() ? ' active' : '');
+    btn.style.backgroundColor = preset.hex;
+    btn.title = preset.name;
+    btn.dataset.color = preset.hex;
+    btn.setAttribute('aria-label', preset.name);
+    colorSwatches.appendChild(btn);
+  });
 
   // Mode button click handlers
   modeButtons.forEach(btn => {
@@ -74,6 +100,17 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Notify content script
     sendMessageToActiveTab({ type: 'VISIBILITY_CHANGED', duckVisible });
+  });
+
+  // Feather colour click handlers
+  colorSwatches.querySelectorAll('.color-swatch').forEach((swatch) => {
+    swatch.addEventListener('click', async () => {
+      const featherColor = swatch.dataset.color;
+      colorSwatches.querySelectorAll('.color-swatch').forEach((s) => s.classList.remove('active'));
+      swatch.classList.add('active');
+      await chrome.storage.sync.set({ featherColor });
+      sendMessageToActiveTab({ type: 'FEATHER_COLOR_CHANGED', featherColor });
+    });
   });
 });
 
