@@ -1,0 +1,322 @@
+/* Ducky Companion - Duck Styles */
+
+/* Main Duck Container */
+.ducky-companion {
+  position: fixed !important;
+  z-index: 2147483647 !important;
+  pointer-events: auto !important;
+  cursor: pointer !important;
+  transition: transform 0.1s ease !important;
+  font-size: 16px !important;
+  line-height: 1 !important;
+}
+
+.ducky-companion.hidden {
+  display: none !important;
+}
+
+/* Duck Body */
+.ducky-body {
+  position: relative !important;
+  width: 80px !important;
+  height: 70px !important;
+  transition: transform 0.3s ease !important;
+}
+
+/* Duck SVG Styling */
+.ducky-svg {
+  width: 100% !important;
+  height: 100% !important;
+  overflow: visible !important;
+}
+
+/* Walking Animation */
+.ducky-companion.walking .ducky-body {
+  animation: ducky-walk-bounce 0.4s ease-in-out infinite !important;
+}
+
+@keyframes ducky-walk-bounce {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  25% { transform: translateY(-3px) rotate(-2deg); }
+  50% { transform: translateY(0) rotate(0deg); }
+  75% { transform: translateY(-3px) rotate(2deg); }
+}
+
+/* Swimming Animation */
+.ducky-companion.swimming .ducky-body {
+  animation: ducky-swim-float 2s ease-in-out infinite !important;
+}
+
+@keyframes ducky-swim-float {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  25% { transform: translateY(-2px) rotate(1deg); }
+  50% { transform: translateY(1px) rotate(0deg); }
+  75% { transform: translateY(-2px) rotate(-1deg); }
+}
+
+/* Swimming ripple effect */
+.ducky-companion.swimming::after {
+  content: '' !important;
+  position: absolute !important;
+  bottom: -5px !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  width: 90px !important;
+  height: 20px !important;
+  background: radial-gradient(ellipse, rgba(100, 180, 255, 0.4) 0%, transparent 70%) !important;
+  border-radius: 50% !important;
+  animation: ripple 1.5s ease-out infinite !important;
+}
+
+@keyframes ripple {
+  0% { transform: translateX(-50%) scale(0.8); opacity: 0.6; }
+  50% { transform: translateX(-50%) scale(1); opacity: 0.3; }
+  100% { transform: translateX(-50%) scale(0.8); opacity: 0.6; }
+}
+
+/* Napping Animation */
+.ducky-companion.napping .ducky-body {
+  transform: rotate(-5deg) !important;
+}
+
+.ducky-companion.napping .ducky-eye {
+  animation: blink-closed 3s ease-in-out infinite !important;
+}
+
+@keyframes blink-closed {
+  0%, 80%, 100% { transform: scaleY(1); }
+  85%, 95% { transform: scaleY(0.1); }
+}
+
+/* Z's for napping */
+.ducky-companion.napping .ducky-zzz {
+  display: block !important;
+  position: absolute !important;
+  top: -10px !important;
+  right: -5px !important;
+  font-size: 14px !important;
+  color: #666 !important;
+  animation: zzz-float 2s ease-in-out infinite !important;
+  font-family: Arial, sans-serif !important;
+}
+
+@keyframes zzz-float {
+  0%, 100% { transform: translateY(0) rotate(-10deg); opacity: 0.7; }
+  50% { transform: translateY(-10px) rotate(10deg); opacity: 1; }
+}
+
+/* Eating Animation */
+.ducky-companion.eating .ducky-body {
+  animation: ducky-eat-peck 0.3s ease-in-out infinite !important;
+}
+
+@keyframes ducky-eat-peck {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(5px) rotate(-5deg); }
+}
+
+/* Quacking Animation */
+.ducky-companion.quacking .ducky-body {
+  animation: ducky-quack-shake 0.15s ease-in-out 3 !important;
+}
+
+@keyframes ducky-quack-shake {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+}
+
+/* Quack bubble */
+.ducky-companion.quacking .ducky-quack-bubble {
+  display: block !important;
+  position: absolute !important;
+  top: -30px !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  background: white !important;
+  padding: 4px 10px !important;
+  border-radius: 12px !important;
+  font-size: 14px !important;
+  font-weight: bold !important;
+  color: #333 !important;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2) !important;
+  animation: bubble-pop 0.5s ease-out forwards !important;
+  white-space: nowrap !important;
+  font-family: Arial, sans-serif !important;
+}
+
+@keyframes bubble-pop {
+  0% { transform: translateX(-50%) scale(0); opacity: 0; }
+  50% { transform: translateX(-50%) scale(1.1); opacity: 1; }
+  100% { transform: translateX(-50%) scale(1); opacity: 0; }
+}
+
+/* Petting Animation - Happy response */
+.ducky-companion.petting .ducky-body {
+  animation: ducky-happy-bounce 0.2s ease-in-out 3 !important;
+}
+
+@keyframes ducky-happy-bounce {
+  0%, 100% { transform: scale(1) rotate(0deg); }
+  25% { transform: scale(1.1) rotate(-5deg); }
+  75% { transform: scale(1.1) rotate(5deg); }
+}
+
+/* Hearts for petting */
+.ducky-companion.petting .ducky-hearts {
+  display: block !important;
+  position: absolute !important;
+  top: -15px !important;
+  left: 50% !important;
+  font-size: 16px !important;
+  animation: hearts-float 0.6s ease-out forwards !important;
+}
+
+@keyframes hearts-float {
+  0% { transform: translateX(-50%) translateY(0); opacity: 1; }
+  100% { transform: translateX(-50%) translateY(-20px); opacity: 0; }
+}
+
+/* Scared/Shoo Animation */
+.ducky-companion.scared .ducky-body {
+  animation: ducky-scared 0.1s ease-in-out infinite !important;
+}
+
+@keyframes ducky-scared {
+  0%, 100% { transform: rotate(0deg); }
+  25% { transform: rotate(-3deg); }
+  75% { transform: rotate(3deg); }
+}
+
+/* Speed lines when running */
+.ducky-companion.running::before {
+  content: '' !important;
+  position: absolute !important;
+  left: -20px !important;
+  top: 50% !important;
+  width: 15px !important;
+  height: 2px !important;
+  background: linear-gradient(to left, rgba(200,200,200,0.8), transparent) !important;
+  animation: speed-line 0.2s linear infinite !important;
+}
+
+@keyframes speed-line {
+  0% { transform: translateX(0); opacity: 1; }
+  100% { transform: translateX(-10px); opacity: 0; }
+}
+
+/* Feed mode - bread cursor */
+.ducky-feed-cursor {
+  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E%3Cpath d='M16 4 L20 8 L24 6 L22 12 L26 14 L20 16 L18 22 L14 18 L8 20 L12 14 L6 10 L12 10 Z' fill='%23D4A574' stroke='%238B6914' stroke-width='1'/%3E%3C/svg%3E") 16 16, pointer !important;
+}
+
+/* Water ground indicator */
+.ducky-water-ground {
+  position: fixed !important;
+  bottom: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  height: 60px !important;
+  background: linear-gradient(to top, rgba(100, 180, 255, 0.3), transparent) !important;
+  pointer-events: none !important;
+  z-index: 2147483646 !important;
+  opacity: 0 !important;
+  transition: opacity 0.3s ease !important;
+}
+
+.ducky-water-ground.visible {
+  opacity: 1 !important;
+}
+
+/* Wing flap animation */
+.ducky-wing {
+  transform-origin: 20% 50% !important;
+}
+
+.ducky-companion.walking .ducky-wing,
+.ducky-companion.eating .ducky-wing {
+  animation: wing-flap 0.3s ease-in-out infinite !important;
+}
+
+@keyframes wing-flap {
+  0%, 100% { transform: rotate(0deg); }
+  50% { transform: rotate(-15deg); }
+}
+
+/* Feet animation for walking */
+.ducky-companion.walking .ducky-foot-left {
+  animation: foot-walk-left 0.4s ease-in-out infinite !important;
+}
+
+.ducky-companion.walking .ducky-foot-right {
+  animation: foot-walk-right 0.4s ease-in-out infinite !important;
+}
+
+@keyframes foot-walk-left {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  25% { transform: translateY(-2px) rotate(-10deg); }
+  75% { transform: translateY(2px) rotate(10deg); }
+}
+
+@keyframes foot-walk-right {
+  0%, 100% { transform: translateY(2px) rotate(10deg); }
+  50% { transform: translateY(-2px) rotate(-10deg); }
+}
+
+/* Swimming feet animation */
+.ducky-companion.swimming .ducky-foot-left,
+.ducky-companion.swimming .ducky-foot-right {
+  animation: foot-paddle 0.8s ease-in-out infinite !important;
+}
+
+@keyframes foot-paddle {
+  0%, 100% { transform: rotate(0deg); }
+  50% { transform: rotate(-20deg); }
+}
+
+/* Beak animation for eating */
+.ducky-companion.eating .ducky-beak {
+  animation: beak-open 0.3s ease-in-out infinite !important;
+}
+
+@keyframes beak-open {
+  0%, 100% { transform: scaleY(1); }
+  50% { transform: scaleY(0.7); }
+}
+
+/* Happy eyes when fed */
+.ducky-companion.fed .ducky-eye {
+  animation: happy-eyes 0.5s ease-in-out !important;
+}
+
+@keyframes happy-eyes {
+  0%, 100% { transform: scaleY(1); }
+  50% { transform: scaleY(0.3); }
+}
+
+/* Duck shadow */
+.ducky-shadow {
+  position: absolute !important;
+  bottom: -5px !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  width: 60px !important;
+  height: 10px !important;
+  background: radial-gradient(ellipse, rgba(0,0,0,0.2) 0%, transparent 70%) !important;
+  border-radius: 50% !important;
+}
+
+/* Flip duck when moving left */
+.ducky-companion.facing-left .ducky-body {
+  transform: scaleX(-1) !important;
+}
+
+.ducky-companion.facing-left.walking .ducky-body {
+  animation: ducky-walk-bounce-flipped 0.4s ease-in-out infinite !important;
+}
+
+@keyframes ducky-walk-bounce-flipped {
+  0%, 100% { transform: scaleX(-1) translateY(0) rotate(0deg); }
+  25% { transform: scaleX(-1) translateY(-3px) rotate(2deg); }
+  50% { transform: scaleX(-1) translateY(0) rotate(0deg); }
+  75% { transform: scaleX(-1) translateY(-3px) rotate(-2deg); }
+}

@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ducky Companion</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      width: 280px;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #e0f7fa 0%, #b2ebf2 100%);
+      padding: 16px;
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 16px;
+    }
+
+    .header h1 {
+      font-size: 20px;
+      color: #00695c;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .duck-icon {
+      font-size: 28px;
+    }
+
+    .section {
+      background: white;
+      border-radius: 12px;
+      padding: 14px;
+      margin-bottom: 12px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    .section-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: #00897b;
+      margin-bottom: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .mode-buttons {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .mode-btn {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 14px;
+      border: 2px solid #e0e0e0;
+      border-radius: 10px;
+      background: #fafafa;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      font-size: 14px;
+      font-weight: 500;
+      color: #424242;
+    }
+
+    .mode-btn:hover {
+      background: #f0f0f0;
+      border-color: #bdbdbd;
+    }
+
+    .mode-btn.active {
+      background: linear-gradient(135deg, #4db6ac 0%, #26a69a 100%);
+      border-color: #00897b;
+      color: white;
+    }
+
+    .mode-btn .emoji {
+      font-size: 20px;
+    }
+
+    .mode-btn .label {
+      flex: 1;
+      text-align: left;
+    }
+
+    .toggle-container {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .toggle-label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 14px;
+      color: #424242;
+    }
+
+    .toggle-label .emoji {
+      font-size: 18px;
+    }
+
+    .toggle {
+      position: relative;
+      width: 48px;
+      height: 26px;
+      background: #e0e0e0;
+      border-radius: 13px;
+      cursor: pointer;
+      transition: background 0.3s ease;
+    }
+
+    .toggle.active {
+      background: #26a69a;
+    }
+
+    .toggle::after {
+      content: '';
+      position: absolute;
+      width: 22px;
+      height: 22px;
+      background: white;
+      border-radius: 50%;
+      top: 2px;
+      left: 2px;
+      transition: transform 0.3s ease;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    }
+
+    .toggle.active::after {
+      transform: translateX(22px);
+    }
+
+    .footer {
+      text-align: center;
+      font-size: 11px;
+      color: #80cbc4;
+      margin-top: 8px;
+    }
+
+    .visibility-toggle {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 8px;
+      padding-top: 8px;
+      border-top: 1px solid #eee;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1><span class="duck-icon">🦆</span> Ducky Companion</h1>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Interaction Mode</div>
+    <div class="mode-buttons">
+      <button class="mode-btn active" data-mode="pet">
+        <span class="emoji">✋</span>
+        <span class="label">Pet Mode</span>
+      </button>
+      <button class="mode-btn" data-mode="shoo">
+        <span class="emoji">👋</span>
+        <span class="label">Shoo Mode</span>
+      </button>
+      <button class="mode-btn" data-mode="feed">
+        <span class="emoji">🍞</span>
+        <span class="label">Feed Mode</span>
+      </button>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Settings</div>
+    <div class="toggle-container">
+      <div class="toggle-label">
+        <span class="emoji">🔊</span>
+        <span>Sound Effects</span>
+      </div>
+      <div class="toggle active" id="soundToggle"></div>
+    </div>
+    <div class="visibility-toggle">
+      <div class="toggle-label">
+        <span class="emoji">🦆</span>
+        <span>Show Duck</span>
+      </div>
+      <div class="toggle active" id="visibilityToggle"></div>
+    </div>
+  </div>
+
+  <div class="footer">
+    Click the duck to make it quack!
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
