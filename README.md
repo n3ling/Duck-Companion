@@ -36,17 +36,6 @@ Click the extension icon to access three interaction modes:
 - **Sound Toggle**: Mute/unmute all sounds from the popup
 - **Visibility Toggle**: Show/hide the duck on the current page
 
-## Installation
-
-### From Source (Developer Mode)
-
-1. Download or clone this repository
-2. Open Chrome and navigate to `chrome://extensions/`
-3. Enable **Developer mode** (toggle in the top-right corner)
-4. Click **Load unpacked**
-5. Select the `duck-extension` folder
-6. The duck will now appear on all web pages!
-
 ## Technical Details
 
 - Built with vanilla JavaScript and CSS
